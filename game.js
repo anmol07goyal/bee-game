@@ -21,18 +21,23 @@ function loop(time = 0) {
 }
 requestAnimationFrame(loop);
 
-// Bee sprite image from repo: bee4.png
+// Images from repo
+const bgImage = new Image();
+bgImage.src = 'garden.png';
 const beeImage = new Image();
 beeImage.src = 'bee4.png';
+
+// Flower emoji pool (randomized per spawn)
+const flowerPool = ['🌸','🌺','🌼','🌷','🌻','💮','💐','🪷'];
 
 class Bee {
   constructor(x, y) {
     this.x = x;
     this.y = y;
 
-    // base sprite dimensions (width, height)
-    this.baseWidth = 42; // starting visual width
-    this.baseHeight = 34; // starting visual height (slightly shorter)
+    // Make the bee a bit bigger at start
+    this.baseWidth = 72; // wider start
+    this.baseHeight = 58; // taller start
     this.width = this.baseWidth;
     this.height = this.baseHeight;
 
@@ -55,6 +60,7 @@ class Bee {
   }
 
   draw(time) {
+    // draw background is handled outside
     if (!beeImage.complete) return;
 
     ctx.save();
@@ -65,10 +71,8 @@ class Bee {
     ctx.translate(this.x, this.y + bob);
     ctx.rotate(this.rotation);
 
-    // Because the provided sprite is a forward-facing bee, we flip horizontally if needed so it never looks upside down
     if (this.flipped) ctx.scale(-1, 1);
 
-    // Apply a small pulse effect for a satisfying "chonk" pop
     const pulseScale = 1 + this.pulse;
     const drawW = this.width * pulseScale;
     const drawH = this.height * pulseScale;
@@ -79,7 +83,7 @@ class Bee {
 
   update(dt) {
     // decay pulse
-    this.pulse = Math.max(0, this.pulse - (dt / 5000));
+    this.pulse = Math.max(0, this.pulse - (dt / 1400));
 
     // Move toward target using lerp
     this.x += (this.targetX - this.x) * this.speed;
@@ -113,23 +117,23 @@ class Bee {
     this.chonk += 1;
 
     // Increase visual width more than height so it looks chonkier, not just larger
-    this.width = this.baseWidth + this.chonk * 8; // wider growth
-    this.height = this.baseHeight + this.chonk * 4; // modest height growth
+    this.width = this.baseWidth + this.chonk * 10; // wider growth
+    this.height = this.baseHeight + this.chonk * 5; // modest height growth
 
     // speed penalty
     this.speed = Math.max(0.01, this.speed - 0.0075);
 
     // small pulse to show the pop
-    this.pulse = 0.12;
+    this.pulse = 0.14;
   }
 
   collisionRadius() {
     // use a radius based on the current dimensions
-    return Math.max(this.width, this.height) * 0.5;
+    return Math.max(this.width, this.height) * 0.45;
   }
 }
 
-// Flowers array and click handling
+// Flowers array and click handling (each flower picks a random emoji and size)
 const flowers = [];
 
 canvas.addEventListener('click', (e) => {
@@ -137,7 +141,10 @@ canvas.addEventListener('click', (e) => {
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
 
-  flowers.push({ x: mx, y: my });
+  const emoji = flowerPool[Math.floor(Math.random() * flowerPool.length)];
+  const size = 22 + Math.floor(Math.random() * 18); // random font size between 22..40
+
+  flowers.push({ x: mx, y: my, icon: emoji, size });
   bee.targetX = mx;
   bee.targetY = my;
 });
@@ -161,16 +168,28 @@ function update(dt) {
 }
 
 function draw(time) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // draw background image stretched to fill canvas
+  if (bgImage.complete) {
+    try {
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    } catch (e) {
+      // fallback to clear if image fails
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  } else {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 
+  // draw flowers (randomized icons and sizes)
   for (const f of flowers) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `28px serif`;
-    ctx.fillText('🌸', f.x, f.y);
+    ctx.font = `${f.size}px serif`;
+    ctx.fillText(f.icon, f.x, f.y);
     ctx.restore();
   }
 
+  // draw bee (passes time for bobbing)
   bee.draw(time);
 }
