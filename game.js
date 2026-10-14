@@ -21,115 +21,49 @@ function loop(time = 0) {
 }
 requestAnimationFrame(loop);
 
-// Cute Bee drawn on canvas (not an emoji). Bee grows "chonkier" visually by expanding its body radii
+// Bee sprite image from repo: bee4.png
+const beeImage = new Image();
+beeImage.src = 'bee4.png';
+
 class Bee {
   constructor(x, y) {
     this.x = x;
     this.y = y;
 
-    // base body radii (horizontal, vertical)
-    this.baseRx = 22;
-    this.baseRy = 14;
-    this.rx = this.baseRx; // current horizontal radius (grows when chonking)
-    this.ry = this.baseRy; // current vertical radius
+    this.baseSize = 42;
+    this.size = this.baseSize;
 
     this.targetX = x;
     this.targetY = y;
 
-    this.speed = 0.06; // lerp factor for position
+    this.speed = 0.06;
 
-    // rotation so bee faces the target
+    // rotation to face the target, but never upside down
     this.rotation = 0;
-    this.rotationSpeed = 0.18; // how quickly the bee turns (0..1)
+    this.rotationSpeed = 0.18;
 
-    // how "chonk" the bee is (affects radii and speed)
+    // chonk / growth system
     this.chonk = 0;
-    this.maxChonk = 6; // visual cap
-
-    // whether the sprite is flipped horizontally so it never appears upside-down
+    this.maxChonk = 6;
     this.flipped = false;
   }
 
   draw(time) {
+    if (!beeImage.complete) return;
+
     ctx.save();
 
-    // bobbing using sine wave, amplitude scales a bit with chonk
     const bobAmp = 6 + this.chonk * 2;
     const bob = Math.sin(time / 180) * bobAmp;
 
-    // draw at center then rotate so facing target
     ctx.translate(this.x, this.y + bob);
     ctx.rotate(this.rotation);
 
-    // If flipped, mirror horizontally so the bee never appears upside-down
+    // Because the provided sprite is a forward-facing bee, we flip horizontally if needed so it never looks upside down
     if (this.flipped) ctx.scale(-1, 1);
 
-    // Draw wings (behind the body)
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.beginPath();
-    ctx.ellipse(-this.rx * 0.25, -this.ry * 1.2, this.rx * 0.6, this.ry * 0.8, -0.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(-this.rx * 0.25, -this.ry * 1.2, this.rx * 0.6, this.ry * 0.8, 0.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Body
-    // Yellow base
-    ctx.fillStyle = '#FFD042';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, this.rx, this.ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Stripes (three black stripes)
-    ctx.fillStyle = '#111';
-    const stripeCount = 3;
-    for (let i = 0; i < stripeCount; i++) {
-      const t = (i - 1) * (this.rx * 0.35);
-      ctx.beginPath();
-      // draw a slightly rotated stripe as an ellipse clipped to body
-      ctx.save();
-      ctx.translate(t, 0);
-      ctx.rotate(0.18 * Math.sin(i + time / 500));
-      ctx.fillRect(-this.rx * 0.6, -this.ry * 0.6, this.rx * 1.2, this.ry * 1.2);
-      ctx.restore();
-    }
-
-    // Face / front details: eye and a little smile
-    // Eye (positioned towards the right/front)
-    const eyeX = this.rx * 0.45;
-    const eyeY = -this.ry * 0.18;
-    // Reduced eye size to be less dominant
-    const eyeRadius = Math.max(1.2, this.ry * 0.12);
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.ellipse(eyeX, eyeY, eyeRadius, eyeRadius, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Tiny white sparkle on eye (smaller)
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(eyeX - this.rx * 0.03, eyeY - this.ry * 0.03, Math.max(0.6, this.ry * 0.04), 0, Math.PI * 2);
-    ctx.fill();
-
-    // Antennae
-    ctx.strokeStyle = '#111';
-    ctx.lineWidth = Math.max(1, this.ry * 0.08);
-    ctx.beginPath();
-    ctx.moveTo(this.rx * 0.15, -this.ry * 0.6);
-    ctx.quadraticCurveTo(this.rx * 0.6, -this.ry * 1.1, this.rx * 0.95, -this.ry * 1.4);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(this.rx * 0.15, -this.ry * 0.6);
-    ctx.quadraticCurveTo(this.rx * 0.35, -this.ry * 1.0, this.rx * 0.05, -this.ry * 1.5);
-    ctx.stroke();
-
-    // Outline for a cute crisp look
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, this.rx, this.ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
-
+    const drawSize = this.size;
+    ctx.drawImage(beeImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
     ctx.restore();
   }
 
@@ -138,18 +72,15 @@ class Bee {
     this.x += (this.targetX - this.x) * this.speed;
     this.y += (this.targetY - this.y) * this.speed;
 
-    // Raw angle to target
     const raw = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-
-    // Normalize raw angle into [-PI, PI]
     let desired = raw;
     while (desired > Math.PI) desired -= Math.PI * 2;
     while (desired < -Math.PI) desired += Math.PI * 2;
 
-    // If desired would make the bee appear upside-down (>90deg tilt), flip horizontally
+    // Keep the bee from appearing upside down by flipping horizontally when needed
     let flip = false;
     if (desired > Math.PI / 2) {
-      desired -= Math.PI; // bring into [-PI/2, PI/2]
+      desired -= Math.PI;
       flip = true;
     } else if (desired < -Math.PI / 2) {
       desired += Math.PI;
@@ -158,27 +89,21 @@ class Bee {
 
     this.flipped = flip;
 
-    // Smoothly rotate towards the constrained desired angle
     let diff = desired - this.rotation;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     this.rotation += diff * this.rotationSpeed;
   }
 
-  // Grow visually when eating
   chonkUp() {
     if (this.chonk >= this.maxChonk) return;
     this.chonk += 1;
-    // expand radii a bit
-    this.rx = this.baseRx + this.chonk * 6; // wider
-    this.ry = this.baseRy + this.chonk * 3; // slightly taller
-    // slow down a little
+    this.size = this.baseSize + this.chonk * 5;
     this.speed = Math.max(0.01, this.speed - 0.0075);
   }
 
-  // helper for collision threshold (scale with size)
   collisionRadius() {
-    return (this.rx + this.ry) * 0.6; // heuristic
+    return this.size * 0.45;
   }
 }
 
@@ -198,11 +123,9 @@ canvas.addEventListener('click', (e) => {
 // Initialize bee in the center
 const bee = new Bee(canvas.width / 2, canvas.height / 2);
 
-// Update & draw
 function update(dt) {
   bee.update();
 
-  // collisions: if bee close to any flower, eat it and chonk up
   for (let i = flowers.length - 1; i >= 0; i--) {
     const f = flowers[i];
     const dx = f.x - bee.x;
@@ -218,7 +141,6 @@ function update(dt) {
 function draw(time) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // draw flowers
   for (const f of flowers) {
     ctx.save();
     ctx.textAlign = 'center';
@@ -228,6 +150,5 @@ function draw(time) {
     ctx.restore();
   }
 
-  // draw bee (passes time for bobbing)
   bee.draw(time);
 }
