@@ -31,7 +31,11 @@ class Bee {
     this.size = 30;
     this.targetX = x;
     this.targetY = y;
-    this.speed = 0.06; // lerp factor
+    this.speed = 0.06; // lerp factor for position
+
+    // rotation properties so the bee faces the target
+    this.rotation = 0; // current angle in radians
+    this.rotationSpeed = 0.2; // how quickly the bee turns (0..1)
   }
 
   draw(time) {
@@ -39,9 +43,14 @@ class Bee {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `${this.size}px serif`;
+
     // bobbing using sine wave
     const bob = Math.sin(time / 200) * Math.min(12, this.size / 3);
-    ctx.fillText('🐝', this.x, this.y + bob);
+
+    // translate to bee position (including bobbing), rotate so the head points to target, then draw at 0,0
+    ctx.translate(this.x, this.y + bob);
+    ctx.rotate(this.rotation);
+    ctx.fillText('🐝', 0, 0);
     ctx.restore();
   }
 
@@ -49,6 +58,14 @@ class Bee {
     // simple linear interpolation towards target (lerp)
     this.x += (this.targetX - this.x) * this.speed;
     this.y += (this.targetY - this.y) * this.speed;
+
+    // compute desired angle and smoothly rotate towards it
+    const desired = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+    // normalize angle difference to [-PI, PI]
+    let diff = desired - this.rotation;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    this.rotation += diff * this.rotationSpeed;
   }
 }
 
