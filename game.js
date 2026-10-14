@@ -38,13 +38,16 @@ class Bee {
 
     this.speed = 0.06; // lerp factor for position
 
-    // rotation so bee faces target
+    // rotation so bee faces the target
     this.rotation = 0;
     this.rotationSpeed = 0.18; // how quickly the bee turns (0..1)
 
     // how "chonk" the bee is (affects radii and speed)
     this.chonk = 0;
     this.maxChonk = 6; // visual cap
+
+    // whether the sprite is flipped horizontally so it never appears upside-down
+    this.flipped = false;
   }
 
   draw(time) {
@@ -57,6 +60,9 @@ class Bee {
     // draw at center then rotate so facing target
     ctx.translate(this.x, this.y + bob);
     ctx.rotate(this.rotation);
+
+    // If flipped, mirror horizontally so the bee never appears upside-down
+    if (this.flipped) ctx.scale(-1, 1);
 
     // Draw wings (behind the body)
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -92,15 +98,17 @@ class Bee {
     // Eye (positioned towards the right/front)
     const eyeX = this.rx * 0.45;
     const eyeY = -this.ry * 0.18;
+    // Reduced eye size to be less dominant
+    const eyeRadius = Math.max(1.2, this.ry * 0.12);
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.ellipse(eyeX, eyeY, Math.max(1.6, this.ry * 0.22), Math.max(1.6, this.ry * 0.22), 0, 0, Math.PI * 2);
+    ctx.ellipse(eyeX, eyeY, eyeRadius, eyeRadius, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Tiny white sparkle on eye
+    // Tiny white sparkle on eye (smaller)
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(eyeX - this.rx * 0.045, eyeY - this.ry * 0.045, Math.max(0.8, this.ry * 0.06), 0, Math.PI * 2);
+    ctx.arc(eyeX - this.rx * 0.03, eyeY - this.ry * 0.03, Math.max(0.6, this.ry * 0.04), 0, Math.PI * 2);
     ctx.fill();
 
     // Antennae
@@ -130,13 +138,30 @@ class Bee {
     this.x += (this.targetX - this.x) * this.speed;
     this.y += (this.targetY - this.y) * this.speed;
 
-    // Desired angle to face the target
-    const desired = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-    // normalize angle difference to [-PI, PI]
+    // Raw angle to target
+    const raw = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+
+    // Normalize raw angle into [-PI, PI]
+    let desired = raw;
+    while (desired > Math.PI) desired -= Math.PI * 2;
+    while (desired < -Math.PI) desired += Math.PI * 2;
+
+    // If desired would make the bee appear upside-down (>90deg tilt), flip horizontally
+    let flip = false;
+    if (desired > Math.PI / 2) {
+      desired -= Math.PI; // bring into [-PI/2, PI/2]
+      flip = true;
+    } else if (desired < -Math.PI / 2) {
+      desired += Math.PI;
+      flip = true;
+    }
+
+    this.flipped = flip;
+
+    // Smoothly rotate towards the constrained desired angle
     let diff = desired - this.rotation;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
-    // Smoothly rotate
     this.rotation += diff * this.rotationSpeed;
   }
 
