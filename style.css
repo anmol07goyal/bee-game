@@ -1,0 +1,15 @@
+/* Remove default margins so the canvas can fill the window */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #eaf8ff;
+  overflow: hidden;
+}
+
+canvas {
+  display: block; /* removes inline gap */
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
