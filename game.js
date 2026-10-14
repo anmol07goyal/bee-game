@@ -1,5 +1,4 @@
-// Setup HTML5 canvas with id 'gameCanvas' to fill window.innerWidth and window.innerHeight. Create a standard game loop function using requestAnimationFrame that clears the canvas every frame.
-
+// Canvas setup
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -22,55 +21,143 @@ function loop(time = 0) {
 }
 requestAnimationFrame(loop);
 
-// Create a Bee class with x, y, size (default 30), targetX, targetY, and speed properties. Add a draw() method that renders a '🐝' emoji using ctx.fillText. Add an update() method that moves x and y towards targetX and targetY using linear interpolation (lerp). Add a Math.sin wave to the y-axis in the draw method so the bee bobs up and down while flying.
-
+// Cute Bee drawn on canvas (not an emoji). Bee grows "chonkier" visually by expanding its body radii
 class Bee {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.size = 30;
+
+    // base body radii (horizontal, vertical)
+    this.baseRx = 22;
+    this.baseRy = 14;
+    this.rx = this.baseRx; // current horizontal radius (grows when chonking)
+    this.ry = this.baseRy; // current vertical radius
+
     this.targetX = x;
     this.targetY = y;
+
     this.speed = 0.06; // lerp factor for position
 
-    // rotation properties so the bee faces the target
-    this.rotation = 0; // current angle in radians
-    this.rotationSpeed = 0.2; // how quickly the bee turns (0..1)
+    // rotation so bee faces target
+    this.rotation = 0;
+    this.rotationSpeed = 0.18; // how quickly the bee turns (0..1)
+
+    // how "chonk" the bee is (affects radii and speed)
+    this.chonk = 0;
+    this.maxChonk = 6; // visual cap
   }
 
   draw(time) {
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${this.size}px serif`;
 
-    // bobbing using sine wave
-    const bob = Math.sin(time / 200) * Math.min(12, this.size / 3);
+    // bobbing using sine wave, amplitude scales a bit with chonk
+    const bobAmp = 6 + this.chonk * 2;
+    const bob = Math.sin(time / 180) * bobAmp;
 
-    // translate to bee position (including bobbing), rotate so the head points to target, then draw at 0,0
+    // draw at center then rotate so facing target
     ctx.translate(this.x, this.y + bob);
     ctx.rotate(this.rotation);
-    ctx.fillText('🐝', 0, 0);
+
+    // Draw wings (behind the body)
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    ctx.ellipse(-this.rx * 0.25, -this.ry * 1.2, this.rx * 0.6, this.ry * 0.8, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(-this.rx * 0.25, -this.ry * 1.2, this.rx * 0.6, this.ry * 0.8, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    // Yellow base
+    ctx.fillStyle = '#FFD042';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, this.rx, this.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stripes (three black stripes)
+    ctx.fillStyle = '#111';
+    const stripeCount = 3;
+    for (let i = 0; i < stripeCount; i++) {
+      const t = (i - 1) * (this.rx * 0.35);
+      ctx.beginPath();
+      // draw a slightly rotated stripe as an ellipse clipped to body
+      ctx.save();
+      ctx.translate(t, 0);
+      ctx.rotate(0.18 * Math.sin(i + time / 500));
+      ctx.fillRect(-this.rx * 0.6, -this.ry * 0.6, this.rx * 1.2, this.ry * 1.2);
+      ctx.restore();
+    }
+
+    // Face / front details: eye and a little smile
+    // Eye (positioned towards the right/front)
+    const eyeX = this.rx * 0.45;
+    const eyeY = -this.ry * 0.18;
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.ellipse(eyeX, eyeY, Math.max(1.6, this.ry * 0.22), Math.max(1.6, this.ry * 0.22), 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tiny white sparkle on eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(eyeX - this.rx * 0.045, eyeY - this.ry * 0.045, Math.max(0.8, this.ry * 0.06), 0, Math.PI * 2);
+    ctx.fill();
+
+    // Antennae
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = Math.max(1, this.ry * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(this.rx * 0.15, -this.ry * 0.6);
+    ctx.quadraticCurveTo(this.rx * 0.6, -this.ry * 1.1, this.rx * 0.95, -this.ry * 1.4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(this.rx * 0.15, -this.ry * 0.6);
+    ctx.quadraticCurveTo(this.rx * 0.35, -this.ry * 1.0, this.rx * 0.05, -this.ry * 1.5);
+    ctx.stroke();
+
+    // Outline for a cute crisp look
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, this.rx, this.ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
     ctx.restore();
   }
 
   update() {
-    // simple linear interpolation towards target (lerp)
+    // Move toward target using lerp
     this.x += (this.targetX - this.x) * this.speed;
     this.y += (this.targetY - this.y) * this.speed;
 
-    // compute desired angle and smoothly rotate towards it
+    // Desired angle to face the target
     const desired = Math.atan2(this.targetY - this.y, this.targetX - this.x);
     // normalize angle difference to [-PI, PI]
     let diff = desired - this.rotation;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
+    // Smoothly rotate
     this.rotation += diff * this.rotationSpeed;
+  }
+
+  // Grow visually when eating
+  chonkUp() {
+    if (this.chonk >= this.maxChonk) return;
+    this.chonk += 1;
+    // expand radii a bit
+    this.rx = this.baseRx + this.chonk * 6; // wider
+    this.ry = this.baseRy + this.chonk * 3; // slightly taller
+    // slow down a little
+    this.speed = Math.max(0.01, this.speed - 0.0075);
+  }
+
+  // helper for collision threshold (scale with size)
+  collisionRadius() {
+    return (this.rx + this.ry) * 0.6; // heuristic
   }
 }
 
-// Create an empty 'flowers' array. Add a click event listener to the canvas. On click, push an object with the mouse x and y coordinates to the flowers array, and set the Bee's targetX and targetY to these coordinates. In the game loop, iterate through the flowers array and draw a '🌸' emoji at their locations.
-
+// Flowers array and click handling
 const flowers = [];
 
 canvas.addEventListener('click', (e) => {
@@ -86,29 +173,24 @@ canvas.addEventListener('click', (e) => {
 // Initialize bee in the center
 const bee = new Bee(canvas.width / 2, canvas.height / 2);
 
-// Calculate the distance between the Bee and its target flower. If the distance is less than 20 pixels, remove that flower from the array. Increase the Bee's size by 10, and decrease its speed property slightly to make it slower and heavier.
-
+// Update & draw
 function update(dt) {
   bee.update();
 
-  // Check collisions with flowers (nearest-first)
+  // collisions: if bee close to any flower, eat it and chonk up
   for (let i = flowers.length - 1; i >= 0; i--) {
     const f = flowers[i];
     const dx = f.x - bee.x;
     const dy = f.y - bee.y;
     const dist = Math.hypot(dx, dy);
-    if (dist < 20) {
-      // "Eat" the flower
+    if (dist < Math.max(18, bee.collisionRadius() * 0.35)) {
       flowers.splice(i, 1);
-      bee.size += 10;
-      // Make bee slightly slower (heavier), but clamp to a minimum speed
-      bee.speed = Math.max(0.01, bee.speed - 0.005);
+      bee.chonkUp();
     }
   }
 }
 
 function draw(time) {
-  // clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // draw flowers
@@ -121,6 +203,6 @@ function draw(time) {
     ctx.restore();
   }
 
-  // draw bee
+  // draw bee (passes time for bobbing)
   bee.draw(time);
 }
