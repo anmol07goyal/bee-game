@@ -35,9 +35,9 @@ class Bee {
     this.x = x;
     this.y = y;
 
-    // Make the bee a bit bigger at start
-    this.baseWidth = 72; // wider start
-    this.baseHeight = 58; // taller start
+    // Balanced starting size for the bee (not too big, not too small)
+    this.baseWidth = 56; // balanced visual width
+    this.baseHeight = 44; // balanced visual height
     this.width = this.baseWidth;
     this.height = this.baseHeight;
 
