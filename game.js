@@ -30,8 +30,11 @@ class Bee {
     this.x = x;
     this.y = y;
 
-    this.baseSize = 42;
-    this.size = this.baseSize;
+    // base sprite dimensions (width, height)
+    this.baseWidth = 42; // starting visual width
+    this.baseHeight = 34; // starting visual height (slightly shorter)
+    this.width = this.baseWidth;
+    this.height = this.baseHeight;
 
     this.targetX = x;
     this.targetY = y;
@@ -44,8 +47,11 @@ class Bee {
 
     // chonk / growth system
     this.chonk = 0;
-    this.maxChonk = 6;
+    this.maxChonk = 8;
     this.flipped = false;
+
+    // a short visual scale pulse when chonking
+    this.pulse = 0;
   }
 
   draw(time) {
@@ -53,7 +59,7 @@ class Bee {
 
     ctx.save();
 
-    const bobAmp = 6 + this.chonk * 2;
+    const bobAmp = 6 + this.chonk * 1.8;
     const bob = Math.sin(time / 180) * bobAmp;
 
     ctx.translate(this.x, this.y + bob);
@@ -62,12 +68,19 @@ class Bee {
     // Because the provided sprite is a forward-facing bee, we flip horizontally if needed so it never looks upside down
     if (this.flipped) ctx.scale(-1, 1);
 
-    const drawSize = this.size;
-    ctx.drawImage(beeImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    // Apply a small pulse effect for a satisfying "chonk" pop
+    const pulseScale = 1 + this.pulse;
+    const drawW = this.width * pulseScale;
+    const drawH = this.height * pulseScale;
+
+    ctx.drawImage(beeImage, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
   }
 
-  update() {
+  update(dt) {
+    // decay pulse
+    this.pulse = Math.max(0, this.pulse - (dt / 5000));
+
     // Move toward target using lerp
     this.x += (this.targetX - this.x) * this.speed;
     this.y += (this.targetY - this.y) * this.speed;
@@ -98,12 +111,21 @@ class Bee {
   chonkUp() {
     if (this.chonk >= this.maxChonk) return;
     this.chonk += 1;
-    this.size = this.baseSize + this.chonk * 5;
+
+    // Increase visual width more than height so it looks chonkier, not just larger
+    this.width = this.baseWidth + this.chonk * 8; // wider growth
+    this.height = this.baseHeight + this.chonk * 4; // modest height growth
+
+    // speed penalty
     this.speed = Math.max(0.01, this.speed - 0.0075);
+
+    // small pulse to show the pop
+    this.pulse = 0.12;
   }
 
   collisionRadius() {
-    return this.size * 0.45;
+    // use a radius based on the current dimensions
+    return Math.max(this.width, this.height) * 0.5;
   }
 }
 
@@ -124,14 +146,14 @@ canvas.addEventListener('click', (e) => {
 const bee = new Bee(canvas.width / 2, canvas.height / 2);
 
 function update(dt) {
-  bee.update();
+  bee.update(dt);
 
   for (let i = flowers.length - 1; i >= 0; i--) {
     const f = flowers[i];
     const dx = f.x - bee.x;
     const dy = f.y - bee.y;
     const dist = Math.hypot(dx, dy);
-    if (dist < Math.max(18, bee.collisionRadius() * 0.35)) {
+    if (dist < Math.max(18, bee.collisionRadius() * 0.5)) {
       flowers.splice(i, 1);
       bee.chonkUp();
     }
