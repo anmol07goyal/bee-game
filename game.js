@@ -21,14 +21,21 @@ function loop(time = 0) {
 }
 requestAnimationFrame(loop);
 
-// Images from repo
+// Images from repo (moved into images/ folder)
 const bgImage = new Image();
-bgImage.src = 'garden.png';
+bgImage.src = 'images/garden.png';
 const beeImage = new Image();
-beeImage.src = 'bee4.png';
+beeImage.src = 'images/bee4.png';
+const bloodImage = new Image();
+bloodImage.src = 'images/blood.png';
 
 // Flower emoji pool (randomized per spawn)
 const flowerPool = ['🌸','🌺','🌼','🌷','🌻','💮','💐','🪷'];
+
+// Game state for burst / restart
+let isBurst = false;
+let burstStart = 0;
+let restartTimeout = null;
 
 class Bee {
   constructor(x, y) {
@@ -60,7 +67,8 @@ class Bee {
   }
 
   draw(time) {
-    // draw background is handled outside
+    // do not draw the bee if it's burst
+    if (isBurst) return;
     if (!beeImage.complete) return;
 
     ctx.save();
@@ -82,6 +90,8 @@ class Bee {
   }
 
   update(dt) {
+    if (isBurst) return; // don't update when burst
+
     // decay pulse
     this.pulse = Math.max(0, this.pulse - (dt / 1400));
 
@@ -141,6 +151,14 @@ canvas.addEventListener('click', (e) => {
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
 
+  // First check if the user clicked on a very chonky/slow bee to burst it
+  const distToBee = Math.hypot(mx - bee.x, my - bee.y);
+  const canBurst = (bee.chonk >= bee.maxChonk - 1) || (bee.speed <= 0.02);
+  if (!isBurst && canBurst && distToBee < bee.collisionRadius() * 0.9) {
+    triggerBurst();
+    return; // do not spawn a flower when bursting
+  }
+
   const emoji = flowerPool[Math.floor(Math.random() * flowerPool.length)];
   const size = 22 + Math.floor(Math.random() * 18); // random font size between 22..40
 
@@ -149,8 +167,27 @@ canvas.addEventListener('click', (e) => {
   bee.targetY = my;
 });
 
+function triggerBurst() {
+  isBurst = true;
+  burstStart = performance.now();
+
+  // start the restart timer (5 seconds)
+  if (restartTimeout) clearTimeout(restartTimeout);
+  restartTimeout = setTimeout(resetGame, 5000);
+}
+
+function resetGame() {
+  // reset state
+  flowers.length = 0;
+  // re-create bee in center
+  bee = new Bee(canvas.width / 2, canvas.height / 2);
+  isBurst = false;
+  burstStart = 0;
+  restartTimeout = null;
+}
+
 // Initialize bee in the center
-const bee = new Bee(canvas.width / 2, canvas.height / 2);
+let bee = new Bee(canvas.width / 2, canvas.height / 2);
 
 function update(dt) {
   bee.update(dt);
@@ -173,7 +210,6 @@ function draw(time) {
     try {
       ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
     } catch (e) {
-      // fallback to clear if image fails
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   } else {
@@ -188,6 +224,31 @@ function draw(time) {
     ctx.font = `${f.size}px serif`;
     ctx.fillText(f.icon, f.x, f.y);
     ctx.restore();
+  }
+
+  // if burst, draw splash at bee position
+  if (isBurst) {
+    if (bloodImage.complete) {
+      // slightly animate splash scale based on elapsed time
+      const elapsed = performance.now() - burstStart;
+      const t = Math.min(1, elapsed / 600);
+      const scale = 1 + t * 0.6;
+      const size = Math.max(48, bee.width * 1.2) * scale;
+      ctx.save();
+      ctx.translate(bee.x, bee.y);
+      ctx.drawImage(bloodImage, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+
+    // optionally draw a faint fade overlay
+    const since = performance.now() - burstStart;
+    const alpha = Math.max(0, 0.6 - since / 8000);
+    if (alpha > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    return; // do not draw bee while burst is active
   }
 
   // draw bee (passes time for bobbing)
