@@ -226,7 +226,7 @@ function draw(time) {
     ctx.restore();
   }
 
-  // if burst, draw static splash at bee position and do NOT draw overlay
+  // if burst, draw static splash at bee position and show message for 5s, do NOT draw overlay
   if (isBurst) {
     if (bloodImage.complete) {
       const size = Math.max(48, bee.width * 1.2);
@@ -235,6 +235,20 @@ function draw(time) {
       ctx.drawImage(bloodImage, -size / 2, -size / 2, size, size);
       ctx.restore();
     }
+
+    // draw centered message for the burst duration
+    const msg = 'Oops, you killed it.';
+    ctx.save();
+    ctx.font = '36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // black outline for readability
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.strokeText(msg, canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = 'white';
+    ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
+    ctx.restore();
 
     return; // do not draw bee while burst is active
   }
