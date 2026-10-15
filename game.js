@@ -226,26 +226,14 @@ function draw(time) {
     ctx.restore();
   }
 
-  // if burst, draw splash at bee position
+  // if burst, draw static splash at bee position and do NOT draw overlay
   if (isBurst) {
     if (bloodImage.complete) {
-      // slightly animate splash scale based on elapsed time
-      const elapsed = performance.now() - burstStart;
-      const t = Math.min(1, elapsed / 600);
-      const scale = 1 + t * 0.6;
-      const size = Math.max(48, bee.width * 1.2) * scale;
+      const size = Math.max(48, bee.width * 1.2);
       ctx.save();
       ctx.translate(bee.x, bee.y);
       ctx.drawImage(bloodImage, -size / 2, -size / 2, size, size);
       ctx.restore();
-    }
-
-    // optionally draw a faint fade overlay
-    const since = performance.now() - burstStart;
-    const alpha = Math.max(0, 0.6 - since / 8000);
-    if (alpha > 0) {
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     return; // do not draw bee while burst is active
