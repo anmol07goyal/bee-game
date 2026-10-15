@@ -218,15 +218,11 @@ function draw(time) {
       ctx.restore();
     }
 
-    // Use Bungee for the "Oops, you killed it." text
     const msg = 'Oops, you killed it.';
     ctx.save();
     ctx.font = '36px "Bungee", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.strokeText(msg, canvas.width / 2, canvas.height / 2);
     ctx.fillStyle = 'white';
     ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
     ctx.restore();
